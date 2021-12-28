@@ -6,6 +6,7 @@ import time
 import abc
 import typing
 from wand.image import Image
+import sys
 
 def cachedArray(func):
     def inner(self, height, width, *args, **kwargs):
@@ -380,8 +381,8 @@ if __name__ == '__main__':
     ch = CalibrationHelpers()
     cm = CalibrationManager()
     cm.setDisplayResolution(1920, 1080)
-    splitscreen = False
-    cm.createFullscreenWindow(-1920, 0)
+    splitscreen = sys.argv[1] == "1"
+    cm.createFullscreenWindow(0, 1080)
     cv2.imshow(cm.windowName, cv2.imread("board.jpg"))
     cv2.waitKey(200)
     #camera = CV2Camera(0, 1080, 3840)
@@ -392,7 +393,7 @@ if __name__ == '__main__':
     #camera.readNewFrame()
     #fisheye = True #move to camera properties? need it also for offline (no camera)
     cm.setActiveCamera(camera)
-    mask = cm.createMonitorMaskRoutine(20)
+    mask = cm.createMonitorMaskRoutine(100)
     erodedMask = cm.erodeMask(mask)
     erodedMaskWand = Image.from_array(erodedMask*255)
     cv2.imshow("res", mask * 100) #binary mask

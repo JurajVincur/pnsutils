@@ -38,6 +38,32 @@ class Camera(metaclass=abc.ABCMeta):
         raise Exception('cannot read frame')
         return None
 
+class FakeCamera(Camera):
+
+    def __init__(self, imgPath, calPath, fisheye):
+        self._image = cv2.imread(imgPath, cv2.IMREAD_GRAYSCALE)
+        self._calPath = calPath
+        self._fisheye = fisheye
+        return
+
+    def readCapture(self):
+        return True, self._image
+
+    def release(self):
+        return
+
+    @property
+    def resolution(self):
+        return self._image.shape[:2]
+
+    @property
+    def fisheye(self):
+        return self._fisheye
+
+    @property
+    def calibration(self):
+        return np.load(self._calPath) #TODO consider read always vs init
+
 class CV2Camera(Camera):
 
     def __init__(self, index, frameHeight, frameWidth):
@@ -74,10 +100,10 @@ class ZedCamera(CV2Camera):
 
 class T265Camera(Camera): #can be potentially refactored to generic realsense camera however everything in intelutils is probably hardcoded for t265
 
-    def __init__(self):
+    def __init__(self, autoExposure=False):
         import pyrealsense2 as rs2
         import intelutils
-        self._cap = intelutils.intelCamThread(frame_callback = lambda frame: None)
+        self._cap = intelutils.intelCamThread(frame_callback = lambda frame: None, autoExposure=autoExposure)
         self._cap.start()
         self._frameWidth = 848 * 2
         self._frameHeight = 800
@@ -102,16 +128,17 @@ class T265Camera(Camera): #can be potentially refactored to generic realsense ca
     def resolution(self):
         return (self._frameHeight, self._frameWidth)
 
+    @property
     def fisheye(self):
         return True
 
 class LeapMotion(Camera):
 
-    def __init__(self, index, frameHeight, frameWidth):
+    def __init__(self, index, frameHeight, frameWidth, timeout=3.0):
         import leapuvc
         self._frameHeight = frameHeight
         self._frameWidth = frameWidth
-        self._cap = leapuvc.leapImageThread(index, resolution=(self._frameWidth >> 1, self._frameHeight))
+        self._cap = leapuvc.leapImageThread(index, resolution=(self._frameWidth >> 1, self._frameHeight), timeout=timeout)
         self._cap.start()
         return
 

@@ -7,7 +7,7 @@ import time
 
 class intelCamThread(threading.Thread):
     '''A thread that handles retrieving imagery from the Intel T265'''
-    def __init__(self, frame_callback, source = 0, frameWidth = 384, timeout = 40.0, exposure = 21500):
+    def __init__(self, frame_callback, source = 0, frameWidth = 384, timeout = 40.0, exposure = 21500, autoExposure = False):
         '''Initialize Rigel Image Capture'''
         threading.Thread.__init__(self)
         self.frame_callback = frame_callback
@@ -32,9 +32,11 @@ class intelCamThread(threading.Thread):
         # Manually set exposure
         prof = self.cfg.resolve(self.pipe)
         s = prof.get_device().query_sensors()[0]
-        s.set_option(rs.option.enable_auto_exposure, 0)
-        s.set_option(rs.option.exposure, exposure)
-        s.set_option(rs.option.gain,2)
+        s.set_option(rs.option.enable_auto_exposure, 1)
+        if autoExposure is False:
+            s.set_option(rs.option.enable_auto_exposure, 0)
+            s.set_option(rs.option.exposure, exposure)
+            s.set_option(rs.option.gain,2)
         # Start streaming with our callback
         self.pipe.start(self.cfg, self.callback)
 
@@ -45,7 +47,7 @@ class intelCamThread(threading.Thread):
             profiles = self.pipe.get_active_profile() 
             streams =    {"left"  : profiles.get_stream(rs.stream.fisheye, 1).as_video_stream_profile(),
                           "right" : profiles.get_stream(rs.stream.fisheye, 2).as_video_stream_profile()}
-            intrinsics = {"left"  : streams["left"] .get_intrinsics(),
+            intrinsics = {"left"  : streams["left"].get_intrinsics(),
                           "right" : streams["right"].get_intrinsics()}
 
             # Print calibration information about both cameras
