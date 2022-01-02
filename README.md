@@ -26,6 +26,8 @@
 
 - *rect.py* - script for debug purposes that show rectified t265 frames
 
-- *serialTest.py* - app to control motorized rig
+- *calibrationRig/controller.py* - app to control motorized rig
+
+- *calibrationRig/driver.ino* - arduino code for motorized rig
 
 - *triangulateChecker.py*, *triangulateChecker2.py*, *triangulateCircles.py* - 3 alternative implementations that capture 3d points with stereo cameras that will be used to derive relative pose between them
