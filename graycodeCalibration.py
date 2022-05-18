@@ -7,6 +7,7 @@ import abc
 import typing
 from wand.image import Image
 import sys
+from polyHelpers import calcCoeffs
 
 def cachedArray(func):
     def inner(self, height, width, *args, **kwargs):
@@ -344,8 +345,8 @@ class CalibrationManager(Borg):
 
         if(calibration is None):
             calibration = self.camera.calibration
-        leftCoeffs = calcCoeffs(leftData , calibration['leftCameraMatrix' ], calibration['R1'])
-        rightCoeffs = calcCoeffs(rightData, calibration['rightCameraMatrix'], calibration['R2'], 1)
+        leftCoeffs = calcCoeffs(leftData , calibration['leftCameraMatrix' ], np.zeros(4), calibration['R1'])
+        rightCoeffs = calcCoeffs(rightData, calibration['rightCameraMatrix'], np.zeros(4), calibration['R2'])
         print(f"DDDDDD: {leftCoeffs[0]}")
         return {
             'left_uv_to_rect_x' : leftCoeffs[0].flatten().tolist(),  'left_uv_to_rect_y': leftCoeffs[1].flatten().tolist(),
@@ -445,6 +446,6 @@ if __name__ == '__main__':
         img.save(filename="./HeightCalibration_blur.png")
     
     cv2.waitKey(0)
-    #cal = cm.calibrateGreycodes(mbw, mbh)
-    #print(cal)
+    cal = cm.calibrateGreycodes(mbw, mbh)
+    print(cal)
     #print(CalibrationHelpers.calibration2GLSL(cal))
