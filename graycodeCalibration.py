@@ -9,6 +9,13 @@ from wand.image import Image
 import sys
 from polyHelpers import calcCoeffs
 
+def wait(timeInMs):
+    timeInNs = timeInMs * 1000000
+    t = time.time_ns()
+    while(time.time_ns() - t < timeInNs):
+        cv2.waitKey(10)
+    return
+
 def cachedArray(func):
     def inner(self, height, width, *args, **kwargs):
         if(hasattr(self, "_cache") is not True):
@@ -286,10 +293,10 @@ class CalibrationManager(Borg):
         aw = self.helpers.allWhite(*self.displayResolution)
         ad = self.helpers.allDark(*self.displayResolution)
         cv2.imshow(self.windowName, aw)
-        cv2.waitKey(displayTimeMs)
+        wait(displayTimeMs)
         frame = self.camera.readNewFrame(undistort=True)
         cv2.imshow(self.windowName, ad)
-        cv2.waitKey(displayTimeMs)
+        wait(displayTimeMs)
         darkFrame = self.camera.readNewFrame(undistort=True)
         return self.createMask(frame, darkFrame, threshold)
         
@@ -308,7 +315,7 @@ class CalibrationManager(Borg):
         for i in range(15):
             bitIndex = (i + 1) // 2
             cv2.imshow(self.windowName, displayedBuffer if colorOverride is None else cv2.merge((displayedBuffer * colorOverride[0], displayedBuffer * colorOverride[1], displayedBuffer * colorOverride[2])))
-            cv2.waitKey(displayTimeMs)
+            wait(displayTimeMs)
             frame = self.camera.readNewFrame(undistort=True)
             if i % 2 is 0:
                 darkFrameBuffer = frame.copy()
@@ -385,7 +392,7 @@ if __name__ == '__main__':
     splitscreen = sys.argv[1] == "1"
     cm.createFullscreenWindow(0, 1080)
     cv2.imshow(cm.windowName, cv2.imread("board.jpg"))
-    cv2.waitKey(200)
+    wait(200)
     #camera = CV2Camera(0, 1080, 3840)
 
     #fisheye = False
@@ -398,7 +405,7 @@ if __name__ == '__main__':
     erodedMask = cm.erodeMask(mask)
     erodedMaskWand = Image.from_array(erodedMask*255)
     cv2.imshow("res", mask * 100) #binary mask
-    cv2.waitKey(200)
+    wait(200)
     widthBits = ch.widthBits(*cm.displayResolution, splitscreen)
     mbw = cm.measureBitsRoutine(widthBits, mask)
     cv2.imshow("res", cv2.applyColorMap(mbw, cv2.COLORMAP_JET))
@@ -413,16 +420,16 @@ if __name__ == '__main__':
     widthBits = ch.widthBits(*cm.displayResolution)
     mbg = cm.measureBitsRoutine(widthBits, mask, brightness=127, threshold=1, displayTimeMs=200, colorOverride = (0,1,0))
     cv2.imshow("res", cv2.applyColorMap(mbg, cv2.COLORMAP_JET))
-    #cv2.waitKey(0)
+    #wait(0)
     mbb = cm.measureBitsRoutine(widthBits, mask, brightness=127, threshold=1, displayTimeMs=200, colorOverride = (1,0,0))
     cv2.imshow("res", cv2.applyColorMap(mbb, cv2.COLORMAP_JET))
-    #cv2.waitKey(0)
+    #wait(0)
     mbr = cm.measureBitsRoutine(widthBits, mask, brightness=127, threshold=1, displayTimeMs=200, colorOverride = (0,0,1))
     cv2.imshow("res", cv2.applyColorMap(mbr, cv2.COLORMAP_JET))
-    #cv2.waitKey(0)
+    #wait(0)
     merged = cv2.merge((mbb, mbg, mbr))
     cv2.imshow("res", merged)
-    cv2.waitKey(0)
+    wait(0)
     """
     heightBits = ch.heightBits(*cm.displayResolution)
     mbh = cm.measureBitsRoutine(heightBits, mask, True)
@@ -445,7 +452,7 @@ if __name__ == '__main__':
         img.composite_channel("gray", erodedMaskWand, "multiply", 0, 0)
         img.save(filename="./HeightCalibration_blur.png")
     
-    cv2.waitKey(0)
+    cv2.waitKey(2000)
     cal = cm.calibrateGreycodes(mbw, mbh)
     print(cal)
     #print(CalibrationHelpers.calibration2GLSL(cal))
