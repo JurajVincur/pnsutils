@@ -131,6 +131,7 @@ class LookupTable:
 
     def __init__(self, resolution=(400, 360)):
         self.lut = np.zeros((2, *resolution, 3), dtype=np.uint16)
+        self.lut32 = np.zeros((2, *resolution, 3), dtype=np.float32)
         self.cameraProperties = None
         return
         
@@ -174,9 +175,12 @@ class LookupTable:
             rg = points @ pm
             rg[:,0] /= rg[:, 3]
             rg[:,1] /= rg[:, 3]
-            rg = (rg * 0.5 + 0.5) * 65535
+            rg = rg * 0.5 + 0.5
             rg = rg.reshape((height, width, 4))
-            self.lut[i, :, :, 2] = rg[:, :, 0]
+            self.lut32[i, :, :, 0] = rg[:, :, 0] #RGB
+            self.lut32[i, :, :, 1] = rg[:, :, 1]
+            rg *= 65535
+            self.lut[i, :, :, 2] = rg[:, :, 0] #BGR
             self.lut[i, :, :, 1] = rg[:, :, 1]
         return
         
@@ -197,15 +201,24 @@ class LookupTable:
         return
         
 if __name__=="__main__":
+    import imageio
+    
     lut = LookupTable()
     lut.loadCameraProperties(r"sampleData\CameraProperties.json")
-    #lut.loadV2Calibration(r"sampleData\V2Out.json")
-    lut.loadV1Calibration(r"sampleData\V1Out.json")
+    lut.loadV2Calibration(r"sampleData\V2Out.json")
+    #lut.loadV1Calibration(r"sampleData\V1Out.json")
+    
+    stacked = np.hstack(lut.lut)
     cv2.imshow('lut_left', lut.lut[0])
     cv2.imshow('lut_right', lut.lut[1])
-    stacked = np.hstack(lut.lut)
     cv2.imshow('lut_stacked', stacked)
+    
     cv2.imwrite('lut_left.png', lut.lut[0])
     cv2.imwrite('lut_right.png', lut.lut[1])
     cv2.imwrite('lut.png', stacked)
+    
+    imageio.imwrite('lut_left.exr', lut.lut32[0])
+    imageio.imwrite('lut_right.exr', lut.lut32[1])
+    imageio.imwrite('lut.exr', np.hstack(lut.lut32))
+    
     cv2.waitKey(0)
