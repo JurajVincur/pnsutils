@@ -129,16 +129,16 @@ class ARRaytracer:
 
 class LookupTable:
 
-    def __init__(self, resolution=(360, 400)):
-        self.lut = np.zeros((2, resolution[1], resolution[0], 3), dtype=np.uint16)
-        self.projectionMatrix = None
+    def __init__(self, resolution=(400, 360)):
+        self.lut = np.zeros((2, *resolution, 3), dtype=np.uint16)
+        self.cameraProperties = None
         return
         
     def viewToUV(self, x, y, z=-1.0):
-        rx = self.projectionMatrix[0] * x + self.projectionMatrix[1] * y + self.projectionMatrix[2] * z + self.projectionMatrix[3]
-        ry = self.projectionMatrix[4] * x + self.projectionMatrix[5] * y + self.projectionMatrix[6] * z + self.projectionMatrix[7]
-        rz = self.projectionMatrix[8] * x + self.projectionMatrix[9] * y + self.projectionMatrix[10] * z + self.projectionMatrix[11]
-        w = self.projectionMatrix[12] * x + self.projectionMatrix[13] * y + self.projectionMatrix[14] * z + self.projectionMatrix[15]
+        rx = self.cameraProperties["projectionMatrix"][0] * x + self.cameraProperties["projectionMatrix"][1] * y + self.cameraProperties["projectionMatrix"][2] * z + self.cameraProperties["projectionMatrix"][3]
+        ry = self.cameraProperties["projectionMatrix"][4] * x + self.cameraProperties["projectionMatrix"][5] * y + self.cameraProperties["projectionMatrix"][6] * z + self.cameraProperties["projectionMatrix"][7]
+        rz = self.cameraProperties["projectionMatrix"][8] * x + self.cameraProperties["projectionMatrix"][9] * y + self.cameraProperties["projectionMatrix"][10] * z + self.cameraProperties["projectionMatrix"][11]
+        w = self.cameraProperties["projectionMatrix"][12] * x + self.cameraProperties["projectionMatrix"][13] * y + self.cameraProperties["projectionMatrix"][14] * z + self.cameraProperties["projectionMatrix"][15]
         rx /= w
         ry /= w
         rx = (rx * 0.5 + 0.5)
@@ -148,8 +148,7 @@ class LookupTable:
     def loadCameraProperties(self, path):
         data = None
         with open(path, "r") as f:
-            data = json.load(f)
-        self.projectionMatrix = data["projectionMatrix"]
+            self.cameraProperties = json.load(f)
         return
         
     def loadV2Calibration(self, path):
@@ -161,16 +160,24 @@ class LookupTable:
         
     def fillLuT(self, data):
         _, height, width, _ = self.lut.shape
-        for x in range(width):
-            u = x / (width - 1)
-            for y in range(height):
-                v = 1.0 - y / (height - 1)
-                for i, side in enumerate(("left", "right")):
-                    rx = polyval2dExpanded(u, v, np.array(data[f"{side}_uv_to_rect_x"]))
-                    ry = -polyval2dExpanded(u, v, np.array(data[f"{side}_uv_to_rect_y"]))
-                    rg = self.viewToUV(rx, ry) * 65535
-                    self.lut[i, y, x, 2] = rg[0] #BGR
-                    self.lut[i, y, x, 1] = rg[1]
+        xData = (np.array(data["left_uv_to_rect_x"]), np.array(data["right_uv_to_rect_x"]))
+        yData = (np.array(data["left_uv_to_rect_y"]), np.array(data["right_uv_to_rect_y"]))
+        pm = np.array(self.cameraProperties["projectionMatrix"]).reshape((4,4)).T
+        v, u = np.indices((height, width))
+        u = u.ravel() / (width - 1)
+        v = 1.0 - v.ravel() / (height - 1)
+        for i in range(2):
+            points = np.ones((u.shape[0], 4))
+            points[:, 0] = np.polynomial.polynomial.polyval2d(u, v, xData[i].reshape((4,4)))
+            points[:, 1] = -np.polynomial.polynomial.polyval2d(u, v, yData[i].reshape((4,4)))
+            points[:, 2] *= -1
+            rg = points @ pm
+            rg[:,0] /= rg[:, 3]
+            rg[:,1] /= rg[:, 3]
+            rg = (rg * 0.5 + 0.5) * 65535
+            rg = rg.reshape((height, width, 4))
+            self.lut[i, :, :, 2] = rg[:, :, 0]
+            self.lut[i, :, :, 1] = rg[:, :, 1]
         return
         
     def loadV1Calibration(self, path):
